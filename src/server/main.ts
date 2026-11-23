@@ -7,7 +7,7 @@ import { openDb } from "./db";
 const port = Number(process.env.PORT ?? 3000);
 const dataDir = process.env.DATA_DIR ?? "data";
 const db = openDb(join(dataDir, "app.db"));
-const app = createApp(db);
+const app = createApp(db, { notesDir: join(dataDir, "notes") });
 app.use("/*", serveStatic({ root: "./dist" }));
 app.get("*", serveStatic({ path: "./dist/index.html" }));
 

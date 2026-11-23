@@ -4,7 +4,7 @@ import { dirname } from "node:path";
 
 // Every event the app records, named once. The server writes them and `bun run stats` reads them,
 // so both import this list instead of typing the strings. Add your product's events here.
-export const EVENT_TYPES = ["opened"] as const;
+export const EVENT_TYPES = ["opened", "note_captured"] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
 // One SQLite file holds the app's data. Tables are created here, and schema changes
