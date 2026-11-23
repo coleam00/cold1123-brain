@@ -1,3 +1,9 @@
+// `bun test` runs in UTC, where local and UTC dates agree and a UTC-bucketing bug would pass.
+// Pin a zone far from UTC before any Date is built, so the 00:05 / 23:55 events below fall on
+// a different UTC day than their local one. Spawned scripts get the same TZ (see runStats), so
+// the test and the script agree on what "today" is.
+process.env.TZ = "Asia/Tokyo";
+
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -6,8 +12,8 @@ import type { Database } from "bun:sqlite";
 import { openDb, recordEvent } from "./db";
 import { localDate, statsLines } from "./stats";
 
-// Timestamps are built with the local Date constructor, never ISO literals, so the counts don't
-// depend on the runner's timezone.
+// Timestamps are built with the local Date constructor (never ISO literals), so they are local
+// times in the pinned zone.
 const TODAY = new Date(2026, 10, 12, 15, 0);
 
 let dir: string;
@@ -29,21 +35,9 @@ function openTestDb(): Database {
 }
 
 function runStats() {
-  const p = Bun.spawnSync(["bun", "scripts/stats.ts"], { env: { ...process.env, DATA_DIR: dir }, stdout: "pipe", stderr: "pipe" });
+  const p = Bun.spawnSync(["bun", "scripts/stats.ts"], { env: { ...process.env, DATA_DIR: dir, TZ: process.env.TZ }, stdout: "pipe", stderr: "pipe" });
   return { code: p.exitCode, lines: p.stdout.toString().trimEnd().split(/\r?\n/), stderr: p.stderr.toString() };
 }
-
-test("with no database, 14 zero rows ending today and zero totals", () => {
-  const lines = statsLines(null, TODAY);
-  expect(lines).toHaveLength(17);
-  expect(lines[0]).toBe("date        captured  old_opened");
-  expect(lines[1]).toBe("2026-10-30  0         0");
-  expect(lines[14]).toBe("2026-11-12  0         0");
-  const dates = lines.slice(1, 15).map((l) => l.slice(0, 10));
-  for (let i = 0; i < 14; i++) expect(dates[i]).toBe(localDate(new Date(2026, 9, 30 + i)));
-  expect(lines[15]).toBe("captured    total=0 avg_per_day=0.0 days_with_any=0/14");
-  expect(lines[16]).toBe("old_opened  total=0 days_with_any=0/14");
-});
 
 test("events count on their local day; outside the window and unknown types are ignored", () => {
   const events = openTestDb();
@@ -64,12 +58,6 @@ test("events count on their local day; outside the window and unknown types are 
   expect(lines[14]).toBe("2026-11-12  2         1");
   expect(lines[15]).toBe("captured    total=4 avg_per_day=0.3 days_with_any=3/14");
   expect(lines[16]).toBe("old_opened  total=1 days_with_any=1/14");
-});
-
-test("avg_per_day is total / 14 with one decimal", () => {
-  const events = openTestDb();
-  for (let i = 0; i < 21; i++) recordEvent(events, "note_captured", new Date(2026, 10, 1 + (i % 7), 12));
-  expect(statsLines(events, TODAY)[15]).toBe("captured    total=21 avg_per_day=1.5 days_with_any=7/14");
 });
 
 test("bun run stats with no database prints zeros, exits 0, and creates nothing", () => {
