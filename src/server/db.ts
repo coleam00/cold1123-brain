@@ -3,8 +3,9 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
 // Every event the app records, named once. The server writes them and `bun run stats` reads them,
-// so both import this list instead of typing the strings. Add your product's events here.
-export const EVENT_TYPES = ["opened", "note_captured"] as const;
+// so both import this list instead of typing the strings.
+// note_captured: one capture appended to a daily note. old_note_opened: an old note was opened.
+export const EVENT_TYPES = ["note_captured", "old_note_opened"] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
 // One SQLite file holds the app's data. Tables are created here, and schema changes
@@ -33,4 +34,17 @@ export function countEvents(db: Database): Record<EventType, number> {
     if ((EVENT_TYPES as readonly string[]).includes(row.type)) counts[row.type as EventType] = row.n;
   }
   return counts;
+}
+
+/**
+ * Every known event at or after `since`, oldest first. Rows whose type is no longer in EVENT_TYPES
+ * are skipped. Comparing ISO strings is safe because recordEvent always writes fixed-width UTC.
+ */
+export function eventsSince(db: Database, since: Date): { type: EventType; at: Date }[] {
+  const rows = db
+    .query("SELECT type, at FROM events WHERE at >= ? ORDER BY at")
+    .all(since.toISOString()) as { type: string; at: string }[];
+  return rows
+    .filter((r) => (EVENT_TYPES as readonly string[]).includes(r.type))
+    .map((r) => ({ type: r.type as EventType, at: new Date(r.at) }));
 }

@@ -1,12 +1,21 @@
-// `bun run stats`: prints the PRD's bet signal. Phase 1 replaces the numbers with the bet's own,
-// keeping two rules: it prints the same format whether or not any data exists yet (zeros on a
-// fresh clone), and it reads event names from EVENT_TYPES rather than typing them.
+// `bun run stats`: prints the PRD's bet signal for the 14 local days ending today (format in
+// architecture.md). It prints the same format whether or not any data exists yet (zeros on a
+// fresh clone), and never creates the database: openDb would make data/ and app.db.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { EVENT_TYPES, countEvents, openDb } from "../src/server/db";
+import { openDb } from "../src/server/db";
+import { statsLines } from "../src/server/stats";
 
 const path = join(process.env.DATA_DIR ?? "data", "app.db");
-const counts = existsSync(path)
-  ? countEvents(openDb(path))
-  : Object.fromEntries(EVENT_TYPES.map((t) => [t, 0]));
-for (const type of EVENT_TYPES) console.log(`${type} ${counts[type]}`);
+let lines: string[];
+if (existsSync(path)) {
+  const db = openDb(path);
+  try {
+    lines = statsLines(db, new Date());
+  } finally {
+    db.close();
+  }
+} else {
+  lines = statsLines(null, new Date());
+}
+for (const l of lines) console.log(l);
