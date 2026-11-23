@@ -20,7 +20,7 @@
 - `src/server/notes.ts` (new in Phase 1): reads and appends markdown note files. The only code that touches the notes folder.
 - `src/server/main.ts`: production entry; reads `PORT` and `DATA_DIR` (default `data/`).
 - `src/web/`: the React UI. `App.tsx` is the home screen: today's daily note with the capture box.
-- `scripts/stats.ts`: the bet's command. `scripts/dev.ts`: the dev servers.
+- `scripts/stats.ts`: the bet's command, a thin wrapper around `src/server/stats.ts`, which builds its output from the events. `scripts/dev.ts`: the dev servers.
 - Tests are `*.test.ts` beside the code.
 
 ## Data

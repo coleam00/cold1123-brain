@@ -26,18 +26,10 @@ test("health answers ok", async () => {
 });
 
 test("events are counted by type, with zeros for types not seen", async () => {
-  expect(await (await createApp(db).request("/api/events/count")).json()).toEqual({ opened: 0 });
-  recordEvent(db, "opened");
-  recordEvent(db, "opened");
-  expect(await (await createApp(db).request("/api/events/count")).json()).toEqual({ opened: 2 });
-});
-
-test("stats prints the same format with no database at all", () => {
-  const empty = mkdtempSync(join(tmpdir(), "stats-test-"));
-  try {
-    const p = Bun.spawnSync(["bun", "scripts/stats.ts"], { env: { ...process.env, DATA_DIR: empty }, stdout: "pipe" });
-    expect(p.stdout.toString().trim()).toBe("opened 0");
-  } finally {
-    rmSync(empty, { recursive: true, force: true });
-  }
+  const count = async () => (await createApp(db).request("/api/events/count")).json();
+  expect(await count()).toEqual({ note_captured: 0, old_note_opened: 0 });
+  recordEvent(db, "note_captured");
+  recordEvent(db, "note_captured");
+  recordEvent(db, "old_note_opened");
+  expect(await count()).toEqual({ note_captured: 2, old_note_opened: 1 });
 });
