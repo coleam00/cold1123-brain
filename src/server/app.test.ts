@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, spyOn, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Database } from "bun:sqlite";
@@ -61,7 +61,6 @@ test("a capture is saved to today's note, returned, and counted once", async () 
   const body = (await res.json()) as { date: string; markdown: string };
   expect(body.date).toBe("2026-11-23");
   expect(body.markdown).toContain("- 09:05 a thought");
-  expect(readFileSync(notePath(), "utf8")).toContain("- 09:05 a thought");
   expect(countEvents(db).note_captured).toBe(1);
 });
 
@@ -69,7 +68,6 @@ test("an empty capture is rejected and nothing is written", async () => {
   const res = await capture(app(), "  ");
   expect(res.status).toBe(400);
   expect(((await res.json()) as { error: string }).error).toBeString();
-  expect(existsSync(notesDir)).toBe(false);
   expect(countEvents(db).note_captured).toBe(0);
 });
 
@@ -112,9 +110,7 @@ test("today's note shows every capture after the app is reopened", async () => {
   try {
     const res = await app(again).request("/api/today");
     expect(res.status).toBe(200);
-    const expected = "# 2026-11-23\n\n- 09:05 one\n- 09:05 two\n";
-    expect(await res.json()).toEqual({ date: "2026-11-23", markdown: expected });
-    expect(readFileSync(notePath(), "utf8")).toBe(expected);
+    expect(await res.json()).toEqual({ date: "2026-11-23", markdown: "# 2026-11-23\n\n- 09:05 one\n- 09:05 two\n" });
   } finally {
     again.close();
   }

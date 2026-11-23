@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -6,8 +6,19 @@ import { EmptyCaptureError, appendCapture, readDaily } from "./notes";
 
 let dir: string;
 let notesDir: string;
-// Local-time constructor, so the expected date and time hold in every timezone.
+// Local-time constructor: 2026-11-23 h:m on the local clock.
 const at = (h: number, m: number) => new Date(2026, 10, 23, h, m);
+
+// bun test runs in UTC, where local time and UTC agree and a UTC slip would pass unnoticed.
+// Run these in Tokyo (UTC+9), set here because TZ from outside is ignored, and restore it after.
+const outerTz = process.env.TZ;
+beforeAll(() => {
+  process.env.TZ = "Asia/Tokyo";
+});
+afterAll(() => {
+  if (outerTz === undefined) delete process.env.TZ;
+  else process.env.TZ = outerTz;
+});
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "notes-test-"));
@@ -24,6 +35,13 @@ test("the first capture creates the notes folder and today's note with its headi
   const file = readFileSync(join(notesDir, "2026-11-23.md"), "utf8");
   expect(file).toBe("# 2026-11-23\n\n- 09:05 hello\n");
   expect(note).toEqual({ date: "2026-11-23", markdown: file });
+});
+
+test("a capture just after local midnight goes in that local day, at its local time", () => {
+  // 01:00 in Tokyo is 16:00 on 2026-11-22 in UTC.
+  appendCapture(notesDir, "early", at(1, 0));
+  expect(readFileSync(join(notesDir, "2026-11-23.md"), "utf8")).toBe("# 2026-11-23\n\n- 01:00 early\n");
+  expect(existsSync(join(notesDir, "2026-11-22.md"))).toBe(false);
 });
 
 test("a second capture appends a line and leaves the first as it was", () => {
