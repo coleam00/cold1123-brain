@@ -10,7 +10,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Database } from "bun:sqlite";
 import { openDb, recordEvent } from "./db";
-import { localDate, statsLines } from "./stats";
+import { localDate } from "./notes";
+import { statsLines } from "./stats";
 
 // Timestamps are built with the local Date constructor (never ISO literals), so they are local
 // times in the pinned zone.

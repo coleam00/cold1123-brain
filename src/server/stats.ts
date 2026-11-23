@@ -2,6 +2,7 @@
 // exists yet) and `today`, so tests can fix the clock. Days are local dates, like daily notes.
 import type { Database } from "bun:sqlite";
 import { EVENT_TYPES, type EventType, eventsSince } from "./db";
+import { localDate } from "./notes";
 
 export const DAYS = 14;
 
@@ -10,12 +11,6 @@ const COLUMNS: Record<EventType, { label: string; avg: boolean }> = {
   note_captured: { label: "captured", avg: true },
   old_note_opened: { label: "old_opened", avg: false },
 };
-
-/** `YYYY-MM-DD` of `d` in local time (toISOString would give the UTC date). */
-export function localDate(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
 
 function zeros(): Record<EventType, number> {
   return Object.fromEntries(EVENT_TYPES.map((t) => [t, 0])) as Record<EventType, number>;
